@@ -1,3 +1,4 @@
+import streamlit as st
 import numpy as np
 
 # 1. Initialize the 8x8 game board
