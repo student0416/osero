@@ -8,73 +8,41 @@ BLACK = 1
 WHITE = -1
 EMPTY = 0
 
-# カスタムCSS: 現実のオセロ盤を再現
+# カスタムCSS: ボタンを石のデザインに書き換える
 st.markdown("""
     <style>
-    /* 盤面全体のコンテナ */
-    .othello-board {
-        background-color: #2e7d32;
-        padding: 10px;
-        border-radius: 5px;
-        border: 4px solid #1b5e20;
-        display: inline-block;
+    /* 盤面の土台 */
+    .stApp {
+        background-color: #1a1a1a;
     }
     
-    /* マスのスタイル */
-    .cell-container {
-        position: relative;
+    /* ボタンの基本スタイル（マス目） */
+    div.stButton > button {
         width: 100%;
-        padding-top: 100%; /* 正方形を維持 */
-        background-color: #2e7d32;
-        border: 1px solid #1b5e20;
+        height: 50px;
+        background-color: #2e7d32 !important; /* オセロの緑 */
+        border: 1px solid #1b5e20 !important;
+        color: transparent !important;
+        border-radius: 0px;
         display: flex;
         align-items: center;
         justify-content: center;
+        margin: 0px;
+        padding: 0px;
     }
 
-    /* 石のスタイル */
-    .piece {
-        position: absolute;
-        top: 10%;
-        left: 10%;
-        width: 80%;
-        height: 80%;
-        border-radius: 50%;
-        box-shadow: 2px 2px 4px rgba(0,0,0,0.4);
-    }
-    .black-piece {
-        background: radial-gradient(circle at 30% 30%, #444, #000);
-    }
-    .white-piece {
-        background: radial-gradient(circle at 30% 30%, #fff, #ccc);
-        border: 1px solid #bbb;
-    }
-
-    /* 置ける場所のヒント（小さなドット） */
-    .hint-dot {
-        position: absolute;
-        top: 40%;
-        left: 40%;
-        width: 20%;
-        height: 20%;
-        background-color: rgba(0, 0, 0, 0.2);
-        border-radius: 50%;
-    }
-
-    /* Streamlitのボタンを透明にしてマスに重ねる */
-    .stButton > button {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: transparent !important;
-        border: none !important;
+    /* 黒石のデザイン */
+    div.stButton > button:disabled {
+        opacity: 1.0 !important;
         color: transparent !important;
-        z-index: 10;
     }
-    .stButton > button:hover {
-        background: rgba(255, 255, 255, 0.1) !important;
+    
+    /* 擬似要素で石を描画（ボタンの中身を書き換えるのは難しいためラベル文字を利用） */
+    /* 実際には、ラベルに特殊文字を入れてCSSで装飾します */
+    
+    /* 置ける場所のホバー効果 */
+    div.stButton > button:hover {
+        background-color: #388e3c !important;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -148,7 +116,7 @@ white_score = np.sum(state["board"] == WHITE)
 
 st.title("🌌 量子オセロ")
 
-# サイドバー設定
+# サイドバー
 st.sidebar.header("対局情報")
 turn_color = "黒" if state["turn"] == BLACK else "白"
 st.sidebar.subheader(f"現在の手番: {turn_color}")
@@ -158,7 +126,7 @@ probs = [p for p, count in state["inventory"][state["turn"]].items() if count > 
 selected_prob = None
 if probs:
     selected_prob = st.sidebar.selectbox(
-        "使用する石（成功確率）を選択:",
+        "使用する石（成功確率）:",
         probs,
         format_func=lambda x: f"{x}% (残り{state['inventory'][state['turn']][x]}枚)"
     )
@@ -170,49 +138,49 @@ if st.sidebar.button("ゲームリセット"):
 valid_moves = get_valid_moves(state["board"], state["turn"])
 
 # 盤面描画
-board_container = st.container()
-with board_container:
-    for r in range(BOARD_SIZE):
-        cols = st.columns(BOARD_SIZE)
-        for c in range(BOARD_SIZE):
-            cell_value = state["board"][r, c]
-            with cols[c]:
-                # マスのベースHTML
-                html_content = '<div class="cell-container">'
-                if cell_value == BLACK:
-                    html_content += '<div class="piece black-piece"></div>'
-                elif cell_value == WHITE:
-                    html_content += '<div class="piece white-piece"></div>'
-                elif (r, c) in valid_moves and not state["game_over"]:
-                    html_content += '<div class="hint-dot"></div>'
-                html_content += '</div>'
-                
-                st.markdown(html_content, unsafe_allow_html=True)
-                
-                # 透明ボタンを重ねる
-                if (r, c) in valid_moves and not state["game_over"]:
-                    if st.button("", key=f"btn_{r}_{c}"):
-                        if selected_prob is not None:
-                            roll = random.randint(1, 100)
-                            is_success = roll <= selected_prob
-                            actual_color = state["turn"] if is_success else -state["turn"]
-                            
-                            res_msg = "成功！" if is_success else "失敗...相手の色になりました"
-                            state["history"].append(f"{turn_color}: ({r+1},{c+1}) {selected_prob}% -> {res_msg}")
-                            
-                            state["board"] = flip_pieces(state["board"], r, c, actual_color)
-                            state["inventory"][state["turn"]][selected_prob] -= 1
-                            state["turn"] = -state["turn"]
-                            st.rerun()
+for r in range(BOARD_SIZE):
+    cols = st.columns(BOARD_SIZE)
+    for c in range(BOARD_SIZE):
+        cell_value = state["board"][r, c]
+        
+        # セルの状態に応じてラベル（見た目）を変える
+        if cell_value == BLACK:
+            label = "⚫"
+            is_disabled = True
+        elif cell_value == WHITE:
+            label = "⚪"
+            is_disabled = True
+        elif (r, c) in valid_moves and not state["game_over"]:
+            label = "·" # 置ける場所のガイド
+            is_disabled = False
+        else:
+            label = ""
+            is_disabled = True
+            
+        with cols[c]:
+            # ボタンを配置
+            if st.button(label, key=f"btn_{r}_{c}", disabled=is_disabled):
+                if selected_prob is not None:
+                    roll = random.randint(1, 100)
+                    is_success = roll <= selected_prob
+                    actual_color = state["turn"] if is_success else -state["turn"]
+                    
+                    res_msg = "成功！" if is_success else "失敗..."
+                    state["history"].append(f"{turn_color}: ({r+1},{c+1}) {selected_prob}% -> {res_msg}")
+                    
+                    state["board"] = flip_pieces(state["board"], r, c, actual_color)
+                    state["inventory"][state["turn"]][selected_prob] -= 1
+                    state["turn"] = -state["turn"]
+                    st.rerun()
 
-# パス判定
+# パス・終了判定
 if not valid_moves and not state["game_over"]:
     next_turn = -state["turn"]
     if not get_valid_moves(state["board"], next_turn):
         state["game_over"] = True
     else:
         st.warning(f"{turn_color} は置ける場所がないためパスします。")
-        if st.button("パスを確定する"):
+        if st.button("パスを確定"):
             state["turn"] = next_turn
             st.rerun()
 
